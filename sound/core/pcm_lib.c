@@ -2294,28 +2294,3 @@ snd_pcm_sframes_t snd_pcm_lib_readv(struct snd_pcm_substream *substream,
 }
 
 EXPORT_SYMBOL(snd_pcm_lib_readv);
-
-#ifdef AUDIO_KARAOKE
-/*for hdmi/audiocodec/spdif mixer capture/play buffer*/
-void audio_mixer_buffer(char *out_buf, char *offloadbuf, char *pcmbuf, int bufflen) {
-	short * p_out_data 	= (short *)out_buf;
-	short * offload_buf = (short *)offloadbuf;
-	short * pcm_buf 	= (short *)pcmbuf;
-	int frames, cnt = 0;
-
-	frames = bufflen/2;
-	for (cnt = 0; cnt < frames; cnt++) {
-		if ((offload_buf != NULL) && (pcm_buf != NULL)) {
-			if ((*(offload_buf + cnt) < 0) && (*(pcm_buf + cnt) < 0)) {
-				*(p_out_data + cnt) = *(offload_buf + cnt) + *(pcm_buf + cnt ) - (((*(offload_buf + cnt)) * (*(pcm_buf + cnt )))/(-32767));
-			} else {
-				*(p_out_data + cnt) = *(offload_buf + cnt) + *(pcm_buf + cnt ) - (((*(offload_buf + cnt)) * (*(pcm_buf + cnt )))/(32768));
-			}
-		} else {
-			pr_warn("nopoint:%s,line:%d\n", __func__, __LINE__);
-			break;
-		}
-	}
-}
-EXPORT_SYMBOL(audio_mixer_buffer);
-#endif

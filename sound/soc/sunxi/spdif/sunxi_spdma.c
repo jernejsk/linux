@@ -33,14 +33,6 @@
 #include "sunxi_spdif.h"
 #include "sunxi_spdma.h"
 
-#ifdef AUDIO_KARAOKE
-extern unsigned char *daudiocap_area;
-extern dma_addr_t daudiocap_dma_addr;
-extern unsigned char *daudiocap_dma_area;      /* DMA area */
-extern struct timeval tv_start, tv_cur;
-extern atomic_t cap_num;
-#endif
-
 static const struct snd_pcm_hardware sunxi_pcm_hardware = {
 	.info			= SNDRV_PCM_INFO_INTERLEAVED | SNDRV_PCM_INFO_BLOCK_TRANSFER |
 				      SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_MMAP_VALID |
@@ -187,39 +179,6 @@ static int sunxi_pcm_mmap(struct snd_pcm_substream *substream,
 	}
 }
 
-#ifdef AUDIO_KARAOKE
-static int sunxi_pcm_copy(struct snd_pcm_substream *substream, int a,
-        snd_pcm_uframes_t hwoff, void __user *buf, snd_pcm_uframes_t frames)
-{
-	int ret = 0;
-	struct snd_pcm_runtime *runtime = substream->runtime;
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		char *hwbuf = runtime->dma_area + frames_to_bytes(runtime, hwoff);
-		if (copy_from_user(hwbuf, buf, frames_to_bytes(runtime, frames))) {
-			return -EFAULT;
-		}
-
-		do_gettimeofday(&tv_cur);
-		/*mixer capture buffer to the play output buffer*/
-		if ((atomic_read(&cap_num) == 1) && ((tv_cur.tv_sec - tv_start.tv_sec) > 4)) {
-			if (frames_to_bytes(runtime, frames)>snd_pcm_lib_period_bytes(substream)) {
-				audio_mixer_buffer(hwbuf, daudiocap_dma_area, hwbuf, snd_pcm_lib_period_bytes(substream));
-				hwbuf = hwbuf+snd_pcm_lib_period_bytes(substream);
-				audio_mixer_buffer(hwbuf, daudiocap_area, hwbuf, snd_pcm_lib_period_bytes(substream));
-			} else {
-				audio_mixer_buffer(hwbuf, daudiocap_area, hwbuf, frames_to_bytes(runtime, frames));
-			}
-		}
-	} else if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
-		char *hwbuf = runtime->dma_area + frames_to_bytes(runtime, hwoff);
-		if (copy_to_user(buf, hwbuf, frames_to_bytes(runtime, frames))) {
-			return -EFAULT;
-		}
-	}
-	return ret;
-}
-#endif
-
 static struct snd_pcm_ops sunxi_pcm_ops = {
 	.open			= sunxi_pcm_open,
 	.close			= sunxi_pcm_close,
@@ -227,12 +186,7 @@ static struct snd_pcm_ops sunxi_pcm_ops = {
 	.hw_params		= sunxi_pcm_hw_params,
 	.hw_free		= sunxi_pcm_hw_free,
 	.trigger		= sunxi_pcm_trigger,
-#ifdef AUDIO_KARAOKE
-	.pointer		= snd_dmaengine_pcm_pointer_no_residue,
-	.copy           = sunxi_pcm_copy,
-#else
 	.pointer		= snd_dmaengine_pcm_pointer,
-#endif
 	.mmap			= sunxi_pcm_mmap,
 };
 

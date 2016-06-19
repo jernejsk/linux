@@ -888,9 +888,6 @@ snd_pcm_sframes_t snd_pcm_lib_writev(struct snd_pcm_substream *substream,
 				     void __user **bufs, snd_pcm_uframes_t frames);
 snd_pcm_sframes_t snd_pcm_lib_readv(struct snd_pcm_substream *substream,
 				    void __user **bufs, snd_pcm_uframes_t frames);
-#ifdef AUDIO_KARAOKE
-void audio_mixer_buffer(char *out_buf, char *offloadbuf, char *pcmbuf, int bufflen);
-#endif
 
 extern const struct snd_pcm_hw_constraint_list snd_pcm_known_rates;
 

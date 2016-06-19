@@ -41,12 +41,7 @@
 #endif
 
 #endif /* __KERNEL__ **/
-/*for allwinnertech hdmi dts/ac3 raw*/
-/*
-*	for allwinnertech karaoke:
-*	main mic capture buffer mixer with music buffer than directly output to hdmiaudio/spdif/audiocodec from kernel.
-*/
-//#define AUDIO_KARAOKE
+
 /*
  *  protocol version
  */

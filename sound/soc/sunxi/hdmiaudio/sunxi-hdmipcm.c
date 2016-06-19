@@ -42,14 +42,6 @@ static dma_addr_t hdmipcm_dma_addr = 0;
 static unsigned char *hdmiraw_dma_area;	/* DMA area */
 static unsigned int channel_status[192];
 
-#ifdef AUDIO_KARAOKE
-extern atomic_t cap_num;
-extern unsigned char *daudiocap_area;
-extern dma_addr_t daudiocap_dma_addr;
-extern unsigned char *daudiocap_dma_area;	/* DMA area */
-extern struct timeval tv_start, tv_cur;
-#endif
-
 typedef struct headbpcuv{
 	unsigned other:3;
     unsigned V:1;
@@ -401,19 +393,6 @@ static int sunxi_pcm_copy(struct snd_pcm_substream *substream, int a,
 			char* hdmihw_area = hdmiraw_dma_area + 2*frames_to_bytes(runtime, hwoff);
 			hdmi_transfer_format_61937_to_60958((int*)hdmihw_area, (short*)hwbuf, frames_to_bytes(runtime, frames));
 		}
-#ifdef AUDIO_KARAOKE
-		do_gettimeofday(&tv_cur);
-		/*mixer capture buffer to the play output buffer*/
-		if ((atomic_read(&cap_num) == 1) && ((tv_cur.tv_sec - tv_start.tv_sec) > 4)&&(raw_flag <= 1)) {
-			if (frames_to_bytes(runtime, frames)>snd_pcm_lib_period_bytes(substream)) {
-				audio_mixer_buffer(hwbuf, daudiocap_dma_area, hwbuf, snd_pcm_lib_period_bytes(substream));
-				hwbuf = hwbuf+snd_pcm_lib_period_bytes(substream);
-				audio_mixer_buffer(hwbuf, daudiocap_area, hwbuf, snd_pcm_lib_period_bytes(substream));
-			} else {
-				audio_mixer_buffer(hwbuf, daudiocap_area, hwbuf, frames_to_bytes(runtime, frames));
-			}
-		}
-#endif
 	} else if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
 		char *hwbuf = runtime->dma_area + frames_to_bytes(runtime, hwoff);
 		if (copy_to_user(buf, hwbuf, frames_to_bytes(runtime, frames))) {
@@ -432,11 +411,9 @@ static struct snd_pcm_ops sunxi_pcm_ops = {
 	.hw_free		= sunxi_pcm_hw_free,
 	.trigger		= sunxi_pcm_trigger,
 
-//	#if defined AUDIO_KARAOKE
 	.pointer		= snd_dmaengine_pcm_pointer_no_residue,
-//	#else
 //	.pointer		= snd_dmaengine_pcm_pointer,
-//	#endif
+
 	.mmap			= sunxi_pcm_mmap,
 	.copy			= sunxi_pcm_copy,
 };
