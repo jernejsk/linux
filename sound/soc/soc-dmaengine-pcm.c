@@ -162,35 +162,17 @@ static int dmaengine_pcm_prepare_and_submit(struct snd_pcm_substream *substream)
 
 	prtd->pos = 0;
 #if defined CONFIG_ARCH_SUN9IW1 || defined (CONFIG_ARCH_SUN8IW6) || defined CONFIG_ARCH_SUN8IW7
-		if (!strcmp(substream->pcm->card->id, "sndhdmiraw")) {
-			desc = dmaengine_prep_dma_cyclic(chan,
-				substream->runtime->dma_addr,
-				2*snd_pcm_lib_buffer_bytes(substream),
-				2*snd_pcm_lib_period_bytes(substream), direction, flags);
-		} else if (!strcmp(substream->pcm->card->id, "snddaudio")) {
-		#ifdef CONFIG_ARCH_SUN9IW1
-			desc = dmaengine_prep_dma_cyclic(chan,
-				substream->runtime->dma_addr,
-				snd_pcm_lib_buffer_bytes(substream),
-				snd_pcm_lib_buffer_bytes(substream), direction, flags);
-		#else//CONFIG_ARCH_SUN8IW6
-			desc = dmaengine_prep_dma_cyclic(chan,
-				substream->runtime->dma_addr,
-				snd_pcm_lib_buffer_bytes(substream),
-				snd_pcm_lib_period_bytes(substream), direction, flags);
-		#endif
-		} else {
-			desc = dmaengine_prep_dma_cyclic(chan,
-				substream->runtime->dma_addr,
-				snd_pcm_lib_buffer_bytes(substream),
-				snd_pcm_lib_period_bytes(substream), direction, flags);
-		}
-#else
+	if (!strcmp(substream->pcm->card->id, "sndhdmiraw"))
+		desc = dmaengine_prep_dma_cyclic(chan,
+			substream->runtime->dma_addr,
+			2*snd_pcm_lib_buffer_bytes(substream),
+			2*snd_pcm_lib_period_bytes(substream), direction, flags);
+	else
+#endif
 		desc = dmaengine_prep_dma_cyclic(chan,
 			substream->runtime->dma_addr,
 			snd_pcm_lib_buffer_bytes(substream),
 			snd_pcm_lib_period_bytes(substream), direction, flags);
-#endif
 
 	if (!desc)
 		return -ENOMEM;
