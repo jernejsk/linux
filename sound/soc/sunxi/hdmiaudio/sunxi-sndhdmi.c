@@ -31,7 +31,7 @@
 int hdmi_format = 1;
 #if defined (CONFIG_ARCH_SUN9I) || defined (CONFIG_ARCH_SUN8IW7) || defined (CONFIG_ARCH_SUN8IW6)
 /*i2s1 as master, hdmi as slave*/
-static int i2s1_master 		= 4;
+static int i2s1_master = 4;
 /*
 audio_format: 1:SND_SOC_DAIFMT_I2S(standard i2s format).            use
 			   2:SND_SOC_DAIFMT_RIGHT_J(right justfied format).
@@ -39,7 +39,7 @@ audio_format: 1:SND_SOC_DAIFMT_I2S(standard i2s format).            use
 			   4:SND_SOC_DAIFMT_DSP_A(pcm. MSB is available on 2nd BCLK rising edge after LRC rising edge). use
 			   5:SND_SOC_DAIFMT_DSP_B(pcm. MSB is available on 1nd BCLK rising edge after LRC rising edge)
 */
-static int audio_format 	= 1;
+static int audio_format = 1;
 /*
 signal_inversion:1:SND_SOC_DAIFMT_NB_NF(normal bit clock + frame)  use
 				  2:SND_SOC_DAIFMT_NB_IF(normal BCLK + inv FRM)
@@ -86,11 +86,9 @@ static int sunxi_hdmiaudio_init(struct snd_soc_pcm_runtime *rtd)
 	/* Add virtual switch */
 	ret = snd_soc_add_codec_controls(codec, sunxi_hdmiaudio_controls,
 					ARRAY_SIZE(sunxi_hdmiaudio_controls));
-	if (ret) {
-		dev_warn(card->dev,
-				"Failed to register audio mode control, "
+	if (ret)
+		dev_warn(card->dev, "Failed to register audio mode control, "
 				"will continue without it.\n");
-	}
 	return 0;
 }
 
@@ -98,9 +96,9 @@ static int sunxi_sndhdmi_hw_params(struct snd_pcm_substream *substream,
 					struct snd_pcm_hw_params *params)
 {
 #if defined (CONFIG_ARCH_SUN9I) || defined (CONFIG_ARCH_SUN8IW7) || defined (CONFIG_ARCH_SUN8IW6)
-	int ret = 0;
 	struct snd_soc_pcm_runtime *rtd = NULL;
-	struct snd_soc_dai *cpu_dai 	= NULL;
+	struct snd_soc_dai *cpu_dai = NULL;
+	int ret = 0;
 
 	u32 freq = 22579200;
 	unsigned long sample_rate = params_rate(params);
@@ -108,8 +106,8 @@ static int sunxi_sndhdmi_hw_params(struct snd_pcm_substream *substream,
 		pr_err("error:%s,line:%d\n", __func__, __LINE__);
 		return -EAGAIN;
 	}
-	rtd 		= substream->private_data;
-	cpu_dai 	= rtd->cpu_dai;
+	rtd = substream->private_data;
+	cpu_dai = rtd->cpu_dai;
 
 	switch (sample_rate) {
 		case 8000:
@@ -128,22 +126,19 @@ static int sunxi_sndhdmi_hw_params(struct snd_pcm_substream *substream,
 
 	/*set system clock source freq and set the mode as i2s0 or pcm*/
 	ret = snd_soc_dai_set_sysclk(cpu_dai, 0 , freq, 0);
-	if (ret < 0) {
+	if (ret < 0)
 		return ret;
-	}
 
 	/*
 	* codec clk & FRM master. AP as slave
 	*/
 	ret = snd_soc_dai_set_fmt(cpu_dai, (audio_format | (signal_inversion<<8) | (i2s1_master<<12)));
-	if (ret < 0) {
+	if (ret < 0)
 		return ret;
-	}
 
 	ret = snd_soc_dai_set_clkdiv(cpu_dai, 0, sample_rate);
-	if (ret < 0) {
+	if (ret < 0)
 		return ret;
-	}
 #endif
 	return 0;
 }
@@ -153,14 +148,14 @@ static struct snd_soc_ops sunxi_sndhdmi_ops = {
 };
 
 static struct snd_soc_dai_link sunxi_sndhdmi_dai_link = {
-	.name 			= "HDMIAUDIO",
+	.name 		= "HDMIAUDIO",
 	.stream_name 	= "SUNXI-HDMIAUDIO",
 	.cpu_dai_name 	= "sunxi-hdmiaudio.0",
 	.codec_dai_name = "sndhdmi",
 	.platform_name 	= "sunxi-hdmiaudio-pcm-audio.0",
 	.codec_name 	= "sunxi-hdmiaudio-codec.0",
-	.init 			= sunxi_hdmiaudio_init,
-	.ops 			= &sunxi_sndhdmi_ops,
+	.init 		= sunxi_hdmiaudio_init,
+	.ops 		= &sunxi_sndhdmi_ops,
 };
 
 static struct snd_soc_card snd_soc_sunxi_sndhdmi = {
@@ -172,15 +167,15 @@ static struct snd_soc_card snd_soc_sunxi_sndhdmi = {
 
 static int __devinit sunxi_sndhdmi_dev_probe(struct platform_device *pdev)
 {
-	int ret = 0;
 	struct snd_soc_card *card = &snd_soc_sunxi_sndhdmi;
-	
+	int ret;
+
 	card->dev = &pdev->dev;
 	ret = snd_soc_register_card(card);
-	if (ret) {
+	if (ret)
 		dev_err(&pdev->dev, "snd_soc_register_card() failed: %d\n",
 			ret);
-	}
+
 	return ret;
 }
 
@@ -211,14 +206,12 @@ static struct platform_driver sunxi_hdmiaudio_driver = {
 
 static int __init sunxi_sndhdmi_init(void)
 {
-	int err = 0;
+	int err;
+	
 	if((err = platform_device_register(&sunxi_hdmiaudio_device)) < 0)
 		return err;
 
-	if ((err = platform_driver_register(&sunxi_hdmiaudio_driver)) < 0)
-		return err;	
-
-	return 0;
+	return platform_driver_register(&sunxi_hdmiaudio_driver);
 }
 module_init(sunxi_sndhdmi_init);
 

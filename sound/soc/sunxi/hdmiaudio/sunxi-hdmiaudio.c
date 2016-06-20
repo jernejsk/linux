@@ -241,11 +241,8 @@ int sunxi_hdmiaudio_hw_params(struct snd_pcm_substream *substream,
 
 	switch (params_format(params))
 	{
-		case SNDRV_PCM_FORMAT_S16_LE:
+	case SNDRV_PCM_FORMAT_S16_LE:
 		sample_resolution = 16;
-		break;
-	case SNDRV_PCM_FORMAT_S20_3LE:
-		sample_resolution = 24;
 		break;
 	case SNDRV_PCM_FORMAT_S24_LE:
 		sample_resolution = 24;
@@ -269,7 +266,7 @@ int sunxi_hdmiaudio_hw_params(struct snd_pcm_substream *substream,
 	reg_val &= ~SUNXI_I2S1FAT0_SR_RVD;
 	if(sunxi_i2s1.samp_res == 16)
 		reg_val |= SUNXI_I2S1FAT0_SR_16BIT;
-       else if(sunxi_i2s1.samp_res == 20)
+	else if(sunxi_i2s1.samp_res == 20)
 		reg_val |= SUNXI_I2S1FAT0_SR_20BIT;
 	else
 		reg_val |= SUNXI_I2S1FAT0_SR_24BIT;
@@ -282,11 +279,7 @@ int sunxi_hdmiaudio_hw_params(struct snd_pcm_substream *substream,
 		writel(reg_val, sunxi_i2s1.regs + SUNXI_I2S1FCTL);
 	}
 
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		dma_data = &sunxi_hdmiaudio_pcm_stereo_out;
-	} else {
-		pr_err("error:hdmiaudio can't support capture:%s,line:%d\n", __func__, __LINE__);	
-	}
+	dma_data = &sunxi_hdmiaudio_pcm_stereo_out;
 
 	snd_soc_dai_set_dma_data(rtd->cpu_dai, substream, dma_data);
 	
@@ -652,6 +645,7 @@ static int sunxi_hdmiaudio_resume(struct snd_soc_dai *cpu_dai)
 }
 #endif
 
+//TODO: set correct rates & formats
 #define SUNXI_I2S_RATES (SNDRV_PCM_RATE_8000_192000 | SNDRV_PCM_RATE_KNOT)
 static struct snd_soc_dai_ops sunxi_hdmiaudio_dai_ops = {
 	.hw_params 		= sunxi_hdmiaudio_hw_params,
@@ -673,11 +667,11 @@ static struct snd_soc_dai_driver sunxi_hdmiaudio_dai = {
 			.channels_min 	= 1,
 			.channels_max 	= 8,
 			.rates 			= SUNXI_I2S_RATES,
-			.formats 		= SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE | SNDRV_PCM_FMTBIT_S24_LE|SNDRV_PCM_FMTBIT_S32_LE,},
+			.formats 		= SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE|SNDRV_PCM_FMTBIT_S32_LE,},
 	.ops 		= &sunxi_hdmiaudio_dai_ops,
 };		
 
-static int __init sunxi_hdmiaudio_dev_probe(struct platform_device *pdev)
+static int sunxi_hdmiaudio_dev_probe(struct platform_device *pdev)
 {
 	int ret = 0;
 	u32 reg_val;
@@ -755,7 +749,7 @@ static int __init sunxi_hdmiaudio_dev_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __exit sunxi_hdmiaudio_dev_remove(struct platform_device *pdev)
+static int sunxi_hdmiaudio_dev_remove(struct platform_device *pdev)
 {
 	if (!pdev) {
 		pr_err("error:%s,line:%d\n", __func__, __LINE__);
