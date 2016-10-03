@@ -28,7 +28,6 @@
 #ifdef CONFIG_ARCH_SUN8IW7
 #include "sunxi-hdmitdm.h"
 #endif
-int hdmi_format = 1;
 #if defined (CONFIG_ARCH_SUN9I) || defined (CONFIG_ARCH_SUN8IW7) || defined (CONFIG_ARCH_SUN8IW6)
 /*i2s1 as master, hdmi as slave*/
 static int i2s1_master = 4;
@@ -49,49 +48,6 @@ signal_inversion:1:SND_SOC_DAIFMT_NB_NF(normal bit clock + frame)  use
 static int signal_inversion = 1;
 #endif
 
-
-static int sunxi_hdmiaudio_set_audio_mode(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_value *ucontrol)
-{
-	hdmi_format = ucontrol->value.integer.value[0];
-	return 0;
-}
-
-static int sunxi_hdmiaudio_get_audio_mode(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_value *ucontrol)
-{
-	ucontrol->value.integer.value[0] = hdmi_format;
-	return 0;
-}
-
-static const char *hdmiaudio_format_function[] = {"null", "pcm", "AC3", "MPEG1", "MP3", "MPEG2", "AAC", "DTS", "ATRAC", "ONE_BIT_AUDIO", "DOLBY_DIGITAL_PLUS", "DTS_HD", "MAT", "WMAPRO"};
-static const struct soc_enum hdmiaudio_format_enum[] = {
-        SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(hdmiaudio_format_function), hdmiaudio_format_function),
-};
-
-/* pcm dts ac3 Audio Mode Select */
-static const struct snd_kcontrol_new sunxi_hdmiaudio_controls[] = {
-	SOC_ENUM_EXT("hdmi audio format Function", hdmiaudio_format_enum[0], sunxi_hdmiaudio_get_audio_mode, sunxi_hdmiaudio_set_audio_mode),
-};
-
-/*
- * Card initialization
- */
-static int sunxi_hdmiaudio_init(struct snd_soc_pcm_runtime *rtd)
-{
-	struct snd_soc_codec *codec = rtd->codec;
-	struct snd_soc_card *card = rtd->card;
-	int ret;
-
-	/* Add virtual switch */
-	ret = snd_soc_add_codec_controls(codec, sunxi_hdmiaudio_controls,
-					ARRAY_SIZE(sunxi_hdmiaudio_controls));
-	if (ret)
-		dev_warn(card->dev, "Failed to register audio mode control, "
-				"will continue without it.\n");
-	return 0;
-}
-
 static int sunxi_sndhdmi_hw_params(struct snd_pcm_substream *substream,
 					struct snd_pcm_hw_params *params)
 {
@@ -102,6 +58,9 @@ static int sunxi_sndhdmi_hw_params(struct snd_pcm_substream *substream,
 
 	u32 freq = 22579200;
 	unsigned long sample_rate = params_rate(params);
+
+	printk("[hdmi audio][sunxi_sndhdmi_hw_params]\n");
+	
 	if (!substream) {
 		pr_err("error:%s,line:%d\n", __func__, __LINE__);
 		return -EAGAIN;
@@ -154,7 +113,6 @@ static struct snd_soc_dai_link sunxi_sndhdmi_dai_link = {
 	.codec_dai_name = "sndhdmi",
 	.platform_name 	= "sunxi-hdmiaudio-pcm-audio.0",
 	.codec_name 	= "sunxi-hdmiaudio-codec.0",
-	.init 		= sunxi_hdmiaudio_init,
 	.ops 		= &sunxi_sndhdmi_ops,
 };
 

@@ -150,6 +150,7 @@ EXPORT_SYMBOL(tdm2_set_fmt);
 int tdm2_hw_params(int sample_resolution)
 {
 	u32 reg_val = 0;
+	
 	reg_val = readl(sunxi_daudio2.regs + SUNXI_DAUDIOFAT0);
 	sunxi_daudio2.samp_res = sample_resolution;
 	reg_val &= ~SUNXI_DAUDIOFAT0_SR;
@@ -190,7 +191,6 @@ EXPORT_SYMBOL(tdm2_set_rate);
 int tdm2_set_clkdiv(int sample_rate)
 {
 	u32 reg_val = 0;
-	u32 mclk_div = 0;
 	u32 bclk_div = 0;
 
 	/*enable mclk*/
@@ -209,50 +209,14 @@ int tdm2_set_clkdiv(int sample_rate)
 		case 16000:
 		case 8000:
 			bclk_div = ((24576000/sample_rate)/(2*pcm_lrck_period));
-			mclk_div = 1;
 		break;
 		default:
 			bclk_div = ((22579200/sample_rate)/(2*pcm_lrck_period));
-			mclk_div = 1;
 		break;
 	}
 
-	switch(mclk_div)
-	{
-		case 1: mclk_div = 1;
-				break;
-		case 2: mclk_div = 2;
-				break;
-		case 4: mclk_div = 3;
-				break;
-		case 6: mclk_div = 4;
-				break;
-		case 8: mclk_div = 5;
-				break;
-		case 12: mclk_div = 6;
-				 break;
-		case 16: mclk_div = 7;
-				 break;
-		case 24: mclk_div = 8;
-				 break;
-		case 32: mclk_div = 9;
-				 break;
-		case 48: mclk_div = 10;
-				 break;
-		case 64: mclk_div = 11;
-				 break;
-		case 96: mclk_div = 12;
-				 break;
-		case 128: mclk_div = 13;
-				 break;
-		case 176: mclk_div = 14;
-				 break;
-		case 192: mclk_div = 15;
-				 break;
-	}
-
 	reg_val &= ~(0xf<<0);
-	reg_val |= mclk_div<<0;
+	reg_val |= 1<<0;
 	switch(bclk_div)
 	{
 		case 1: bclk_div = 1;
@@ -383,6 +347,7 @@ int tdm2_prepare(struct snd_pcm_substream *substream)
 	reg_val &= ~SUNXI_DAUDIOCTL_SDO2EN;
 	reg_val &= ~SUNXI_DAUDIOCTL_SDO1EN;
 	reg_val &= ~SUNXI_DAUDIOCTL_SDO0EN;
+	printk("[hdmi audio][i2s2] channels: %d\n", substream->runtime->channels);
 	switch (substream->runtime->channels) {
 		case 1:
 		case 2:
@@ -439,6 +404,7 @@ static int sunxi_daudio_hw_params(struct snd_pcm_substream *substream,
 			return -EINVAL;
 	}
 
+	printk("[hdmi audio][sunxi_daudio_hw_params] Format: %d\n", hdmi_format);
 	if (raw_flag > 1)
 		sample_resolution = 24;
 
@@ -585,7 +551,7 @@ static struct snd_soc_dai_ops sunxi_daudio_dai_ops = {
 	.prepare  =	sunxi_daudio_perpare,
 };
 
-static struct snd_soc_dai_driver sunxi_daudio_dai = {	
+static struct snd_soc_dai_driver sunxi_daudio_dai = {
 	.suspend 	= sunxi_daudio_suspend,
 	.resume 	= sunxi_daudio_resume,
 	.playback 	= {

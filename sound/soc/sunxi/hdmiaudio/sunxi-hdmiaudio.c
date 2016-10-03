@@ -231,8 +231,8 @@ void sunxi_snd_txctrl_i2s1(struct snd_pcm_substream *substream, int on,int hub_o
 #endif
 
 int sunxi_hdmiaudio_hw_params(struct snd_pcm_substream *substream,
-																struct snd_pcm_hw_params *params,
-																struct snd_soc_dai *dai)
+				struct snd_pcm_hw_params *params,
+				struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd 	= NULL;
 	struct sunxi_dma_params *dma_data 	= NULL;
@@ -253,6 +253,8 @@ int sunxi_hdmiaudio_hw_params(struct snd_pcm_substream *substream,
 	default:
 		return -EINVAL;
 	}
+	
+	printk("[hdmi audio][sunxi_hdmiaudio_hw_params] Format: %d\n", raw_flag);
 	if (raw_flag > 1) {
 		sample_resolution = 24;
 	}

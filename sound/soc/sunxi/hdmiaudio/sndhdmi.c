@@ -32,7 +32,6 @@
 #ifdef CONFIG_ARCH_SUN8IW7
 #include "sunxi-hdmitdm.h"
 #endif
-static bool hdmiaudio_reset_en = false;
 static __audio_hdmi_func g_hdmi_func;
 static hdmi_audio_t hdmi_para;
 atomic_t pcm_count_num;
@@ -54,6 +53,8 @@ EXPORT_SYMBOL(audio_set_hdmi_func);
 static int sndhdmi_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params, struct snd_soc_dai *dai)
 {
+	printk("[hdmi audio][sndhdmi_hw_params]\n");
+	
 	if ((!substream)||(!params)) {
 		pr_err("error:%s,line:%d\n", __func__, __LINE__);
 		return -EAGAIN;
@@ -61,7 +62,6 @@ static int sndhdmi_hw_params(struct snd_pcm_substream *substream,
 
 	hdmi_para.sample_rate = params_rate(params);
 	hdmi_para.channel_num = params_channels(params);
-	hdmi_para.data_raw = hdmi_format;
 
 	switch (params_format(params))
 	{
@@ -77,24 +77,6 @@ static int sndhdmi_hw_params(struct snd_pcm_substream *substream,
 		default:
 			return -EINVAL;
 	}
-	/*
-		PCM = 1,
-		AC3 = 2,
-		MPEG1 = 3,
-		MP3 = 4,
-		MPEG2 = 5,
-		AAC = 6,
-		DTS = 7,
-		ATRAC = 8,
-		ONE_BIT_AUDIO = 9,
-		DOLBY_DIGITAL_PLUS = 10,
-		DTS_HD = 11,
-		MAT = 12,
-		DST = 13,
-		WMAPRO = 14. 
-	*/
-	if (hdmi_para.data_raw > 1)
-		hdmi_para.sample_bit = 24; //??? TODO
 
 	if (hdmi_para.channel_num == 8)
 		hdmi_para.ca = 0x12;
@@ -113,6 +95,7 @@ static int sndhdmi_prepare(struct snd_pcm_substream *substream,
 #ifdef CONFIG_ARCH_SUN9I
 	int is_play = 0, i = 0;
 #endif
+	printk("[hdmi audio][sndhdmi_prepare]\n");
 
 #if defined CONFIG_ARCH_SUN9I || defined CONFIG_ARCH_SUN8IW6
 	/*Global Enable Digital Audio Interface*/
@@ -136,7 +119,11 @@ static int sndhdmi_prepare(struct snd_pcm_substream *substream,
 	reg_val |= SUNXI_DAUDIOFCTL_FTX;
 	writel(reg_val, SUNXI_DAUDIO2_VBASE + SUNXI_DAUDIOFCTL);
 #endif
-	if ((hdmi_para.data_raw > 1)||(hdmi_para.sample_bit!=16)||(hdmi_para.channel_num != 2)||(hdmi_para.sample_rate != 44100)||( hdmiaudio_reset_en == true))
+	hdmi_para.data_raw = hdmi_format;
+	printk("[hdmi audio][sndhdmi] Prepare format: %d\n", hdmi_format);
+	if (hdmi_para.data_raw > 1)
+		hdmi_para.sample_bit = 24;
+	if ((hdmi_para.data_raw > 1)||(hdmi_para.sample_bit!=16)||(hdmi_para.channel_num != 2)||(hdmi_para.sample_rate != 44100))
 		atomic_set(&pcm_count_num, 0);
 	else
 		atomic_inc(&pcm_count_num);
@@ -148,9 +135,7 @@ static int sndhdmi_prepare(struct snd_pcm_substream *substream,
 		printk(KERN_WARNING "hdmi video isn't insmod, hdmi interface is null\n");
 		return 0;
 	}
-	if (hdmiaudio_reset_en)
-		pr_err("%s,l:%d,hdmi_para.data_raw:%d, hdmi_para.sample_bit:%d, hdmi_para.channel_num:%d, hdmi_para.sample_rate:%d, hdmiaudio_reset_en:%d\n",\
-			__func__, __LINE__, hdmi_para.data_raw, hdmi_para.sample_bit, hdmi_para.channel_num, hdmi_para.sample_rate, hdmiaudio_reset_en);
+
 	if (atomic_read(&pcm_count_num) <= 1) {
 		g_hdmi_func.hdmi_set_audio_para(&hdmi_para);
 		g_hdmi_func.hdmi_audio_enable(1, 1);
@@ -293,7 +278,6 @@ static int __init sndhdmi_codec_init(void)
 	return platform_driver_register(&sndhdmi_codec_driver);
 }
 module_init(sndhdmi_codec_init);
-module_param_named(hdmiaudio_reset_en, hdmiaudio_reset_en, bool, S_IRUGO | S_IWUSR);
 
 static void __exit sndhdmi_codec_exit(void)
 {
