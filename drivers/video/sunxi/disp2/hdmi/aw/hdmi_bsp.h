@@ -1,6 +1,9 @@
 #ifndef __HDMI_BSP_H_
 #define __HDMI_BSP_H_
 
+#include <linux/types.h>
+#include <video/sunxi_display2.h>
+
 #define LINUX_OS
 
 #ifdef LINUX_OS
@@ -22,11 +25,11 @@ enum color_space
 
 struct video_para
 {
-	unsigned int 			vic;
-	enum color_space	csc;
-	unsigned char			is_hdmi;
-	unsigned char			is_yuv;
-	unsigned char			is_hcts;	
+	unsigned int     vic;
+	enum color_space csc;
+	unsigned char    is_hdmi;
+	unsigned char    is_yuv;
+	unsigned char    is_hcts;
 };
 
 enum audio_type
@@ -49,11 +52,11 @@ enum audio_type
 
 struct audio_para
 {
-	enum	audio_type	type;
-	unsigned char			ca;
-	unsigned int			sample_rate;
-	unsigned int			sample_bit;
-	unsigned int			ch_num;
+	enum audio_type type;
+	unsigned char   ca;
+	unsigned int    sample_rate;
+	unsigned int    sample_bit;
+	unsigned int    ch_num;
 };
 
 #ifdef LINUX_OS
@@ -62,7 +65,7 @@ int api_set_func(hdmi_udelay udelay);
 void bsp_hdmi_set_addr(unsigned int base_addr);
 void bsp_hdmi_init(void);
 void bsp_hdmi_set_video_en(unsigned char enable);
-int bsp_hdmi_video(struct video_para *video);
+int bsp_hdmi_video(struct video_para *video, disp_video_timings *timings);
 int bsp_hdmi_audio(struct audio_para *audio);
 int bsp_hdmi_ddc_read(char cmd,char pointer,char offset,int nbyte,char * pbuf);
 unsigned int bsp_hdmi_get_hpd(void);

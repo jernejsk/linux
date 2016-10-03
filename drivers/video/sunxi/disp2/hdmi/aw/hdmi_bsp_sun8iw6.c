@@ -357,7 +357,7 @@ void bsp_hdmi_set_video_en(unsigned char enable)
 #endif
 }
 
-int bsp_hdmi_video(struct video_para *video)
+int bsp_hdmi_video(struct video_para *video, disp_video_timings *timings)
 {
 	unsigned int id = get_vid(video->vic);
 	glb_video.vic = video->vic;
