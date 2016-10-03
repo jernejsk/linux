@@ -1,6 +1,6 @@
 #include "dev_hdmi.h"
 #include "drv_hdmi_i.h"
-#include "hdmi_hal.h"
+#include "aw/hdmi_core.h"
 
 static struct cdev *my_cdev;
 static dev_t devid ;
@@ -133,7 +133,7 @@ static DEVICE_ATTR(hpd_mask, S_IRUGO|S_IWUSR|S_IWGRP,hdmi_hpd_mask_show, hdmi_hp
 
 static ssize_t hdmi_edid_show(struct device *dev,struct device_attribute *attr, char *buf)
 {
-	void* pedid = (void*)Hdmi_hal_get_edid();
+	void* pedid = (void*)GetEdidInfo();
 
 	memcpy(buf, pedid, HDMI_EDID_LEN);
 	return HDMI_EDID_LEN;
@@ -275,14 +275,10 @@ static int __init hdmi_module_init(void)
 	ghdmi.dev = device_create(hdmi_class, NULL, devid, NULL, "hdmi");
 
 	ret = sysfs_create_group(&ghdmi.dev->kobj,&hdmi_attribute_group);
+	ret |= platform_device_register(&hdmi_device);
 
-	ret |= hdmi_i2c_add_driver();
-
-	ret = platform_device_register(&hdmi_device);
-
-	if (ret == 0) {
+	if (ret == 0)
 		ret = platform_driver_register(&hdmi_driver);
-	}
 
 	__inf("hdmi_module_init\n");
 	return ret;
@@ -293,7 +289,6 @@ static void __exit hdmi_module_exit(void)
 	__inf("hdmi_module_exit\n");
 	platform_driver_unregister(&hdmi_driver);
 	platform_device_unregister(&hdmi_device);
-	hdmi_i2c_del_driver();
 	class_destroy(hdmi_class);
 	cdev_del(my_cdev);
 }

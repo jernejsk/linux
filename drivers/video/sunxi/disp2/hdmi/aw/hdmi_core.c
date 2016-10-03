@@ -1,4 +1,5 @@
 #include "hdmi_core.h"
+#include <linux/delay.h>
 
 static __s32 hdmi_state = HDMI_State_Idle;
 static __u32 video_on = 0;
@@ -18,6 +19,8 @@ static HDMI_AUDIO_INFO audio_info;
 static struct mutex hdmi_lock;
 static __s32 audio_config_internal(void);
 extern __s32 is_exp;
+extern unsigned int hdmi_get_soc_version(void);
+extern __s32 Hdmi_hpd_event(void);
 __u32 hdmi_print = 0;
 __u32 hdmi_pll = 0;//0:video pll 0; 1:video pll 1
 __u32 hdmi_clk = 297000000;
@@ -78,7 +81,6 @@ __s32 hdmi_core_initial(bool sw_only)
 	memset(&audio_info,0,sizeof(HDMI_AUDIO_INFO));
 	mutex_init(&hdmi_lock);
 	bsp_hdmi_set_version(hdmi_get_soc_version());
-	api_set_func(hdmi_delay_us);
 	hdmi_para_init();
 	if(sw_only) {
 		video_enable = 1;
@@ -119,9 +121,9 @@ static __s32 main_Hpd_Check(void)
 			times++;
 
 		if((cts_enable==1) && (hdcp_enable==1))
-			hdmi_delay_ms(20); //200
+			msleep_interruptible(20); //200
 		else
-			hdmi_delay_ms(200); //200
+			msleep_interruptible(200); //200
 	}
 
 	if(times >= 3)

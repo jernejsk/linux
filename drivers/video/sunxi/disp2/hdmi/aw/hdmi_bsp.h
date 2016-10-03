@@ -4,18 +4,6 @@
 #include <linux/types.h>
 #include <video/sunxi_display2.h>
 
-#define LINUX_OS
-
-#ifdef LINUX_OS
-typedef void (*hdmi_udelay) (unsigned long us);
-#ifndef NULL
-#define NULL 0
-#endif
-#define hdmi_udelay(x) if(__hdmi_udelay) __hdmi_udelay(x);
-#else
-#define hdmi_udelay(x) udelay(x)
-#endif
-
 enum color_space
 {
 	BT601 = 1,
@@ -59,9 +47,6 @@ struct audio_para
 	unsigned int    ch_num;
 };
 
-#ifdef LINUX_OS
-int api_set_func(hdmi_udelay udelay);
-#endif
 void bsp_hdmi_set_addr(unsigned int base_addr);
 void bsp_hdmi_init(void);
 void bsp_hdmi_set_video_en(unsigned char enable);

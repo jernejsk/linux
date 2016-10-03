@@ -1,8 +1,7 @@
 #ifndef __HDMI_CORE_H__
 #define __HDMI_CORE_H__
 
-#include "../hdmi_hal.h"
-#include "hdmi_interface.h"
+#include "../drv_hdmi_i.h"
 #include "hdmi_edid.h"
 #include "hdmi_bsp.h"
 
@@ -16,6 +15,28 @@
 //#define HDMI_State_Audio_config		 0x07
 //#define HDMI_State_Playback			 0x09
 
+#define HDMI1440_480I      6
+#define HDMI1440_576I      21
+#define HDMI480P           2
+#define HDMI576P           17
+#define HDMI720P_50        19
+#define HDMI720P_60        4
+#define HDMI1080I_50       20
+#define HDMI1080I_60       5
+#define HDMI1080P_50       31
+#define HDMI1080P_60       16
+#define HDMI1080P_24       32
+#define HDMI1080P_25       33
+#define HDMI1080P_30       34
+#define HDMI1080P_24_3D_FP (HDMI1080P_24 +0x80)
+#define HDMI720P_50_3D_FP  (HDMI720P_50  +0x80)
+#define HDMI720P_60_3D_FP  (HDMI720P_60  +0x80)
+#define HDMI3840_2160P_30  (1+0x100)
+#define HDMI3840_2160P_25  (2+0x100)
+#define HDMI3840_2160P_24  (3+0x100)
+
+#define HDMI_EDID_LEN      1024
+#define HDMI_EDID          511
 
 /*
 typedef struct video_timing

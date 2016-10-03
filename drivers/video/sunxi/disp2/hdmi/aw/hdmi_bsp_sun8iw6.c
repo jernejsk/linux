@@ -1,6 +1,7 @@
-#include "hdmi_bsp_i.h"
 #include "hdmi_bsp.h"
 #include "hdmi_core.h"
+#include <linux/delay.h>
+#include <asm/io.h>
 
 static unsigned int hdmi_base_addr;
 static struct video_para glb_video;
@@ -81,23 +82,13 @@ static unsigned int n_table[21] =
 
 static void hdmi_write(unsigned int addr, unsigned char data)
 {
-	put_bvalue(hdmi_base_addr + addr, data);
+	writeb_relaxed(data, hdmi_base_addr + addr);
 }
 
 static unsigned char hdmi_read(unsigned int addr)
 {
-	return get_bvalue(hdmi_base_addr + addr);
+	return readb_relaxed(hdmi_base_addr + addr);
 }
-
-#if 1//def  LINUX_OS
-static hdmi_udelay __hdmi_udelay = NULL;
-
-int api_set_func(hdmi_udelay udelay)
-{
-	__hdmi_udelay = udelay;
-	return 0;
-}
-#endif
 
 static void hdmi_phy_init(struct video_para *video)
 {
@@ -107,7 +98,7 @@ static void hdmi_phy_init(struct video_para *video)
 	hdmi_write(0x10003, 0x00);
 	hdmi_write(0x10007, 0xa0);
 	hdmi_write(0x0083, 0x01);
-	hdmi_udelay(1);
+	udelay(1);
 	hdmi_write(0x0240, 0x06);
 	hdmi_write(0x0240, 0x16);
 	hdmi_write(0x0240, 0x12);
@@ -149,128 +140,128 @@ static int hdmi_phy_set(struct video_para *video)
 			hdmi_write(0xA240, 0x00);
 			hdmi_write(0xA241, 0x00);
 			hdmi_write(0xA242, 0x10);
-			hdmi_udelay(2000);
+			udelay(2000);
 			hdmi_write(0x2241, 0x15);
 			hdmi_write(0xA240, 0x00);
 			hdmi_write(0xA241, 0x0f);
 			hdmi_write(0xA242, 0x10);
-			hdmi_udelay(2000);
+			udelay(2000);
 			hdmi_write(0x2241, 0x10);
 			hdmi_write(0xA240, 0x00);
 			hdmi_write(0xA241, 0x00);
 			hdmi_write(0xA242, 0x10);
-			hdmi_udelay(2000);
+			udelay(2000);
 			hdmi_write(0x2241, 0x19);
 			hdmi_write(0xA240, 0x00);
 			hdmi_write(0xA241, 0x02);
 			hdmi_write(0xA242, 0x10);
-			hdmi_udelay(2000);
+			udelay(2000);
 			hdmi_write(0x2241, 0x0e);
 			hdmi_write(0xA240, 0x00);
 			hdmi_write(0xA241, 0x00);
 			hdmi_write(0xA242, 0x10);
-			hdmi_udelay(2000);
+			udelay(2000);
 			hdmi_write(0x2241, 0x09);
 			hdmi_write(0xA240, 0x80);
 			hdmi_write(0xA241, 0x2b);
 			hdmi_write(0xA242, 0x10);
-			hdmi_udelay(2000);
+			udelay(2000);
 			break;
 		case 2:
 			hdmi_write(0x2241, 0x06);
 			hdmi_write(0xA240, 0x04);
 			hdmi_write(0xA241, 0xa0);
 			hdmi_write(0xA242, 0x10);
-			hdmi_udelay(2000);
+			udelay(2000);
 			hdmi_write(0x2241, 0x15);
 			hdmi_write(0xA240, 0x00);
 			hdmi_write(0xA241, 0x0a);
 			hdmi_write(0xA242, 0x10);
-			hdmi_udelay(2000);
+			udelay(2000);
 			hdmi_write(0x2241, 0x10);
 			hdmi_write(0xA240, 0x00);
 			hdmi_write(0xA241, 0x00);
 			hdmi_write(0xA242, 0x10);
-			hdmi_udelay(2000);
+			udelay(2000);
 			hdmi_write(0x2241, 0x19);
 			hdmi_write(0xA240, 0x00);
 			hdmi_write(0xA241, 0x02);
 			hdmi_write(0xA242, 0x10);
-			hdmi_udelay(2000);
+			udelay(2000);
 			hdmi_write(0x2241, 0x0e);
 			hdmi_write(0xA240, 0x00);
 			hdmi_write(0xA241, 0x21);
 			hdmi_write(0xA242, 0x10);
-			hdmi_udelay(2000);
+			udelay(2000);
 			hdmi_write(0x2241, 0x09);
 			hdmi_write(0xA240, 0x80);
 			hdmi_write(0xA241, 0x29);
 			hdmi_write(0xA242, 0x10);
-			hdmi_udelay(2000);
+			udelay(2000);
 			break;
 		case 4:
 			hdmi_write(0x2241, 0x06);
 			hdmi_write(0xA240, 0x05);
 			hdmi_write(0xA241, 0x40);
 			hdmi_write(0xA242, 0x10);
-			hdmi_udelay(2000);
+			udelay(2000);
 			hdmi_write(0x2241, 0x15);
 			hdmi_write(0xA240, 0x00);
 			hdmi_write(0xA241, 0x05);
 			hdmi_write(0xA242, 0x10);
-			hdmi_udelay(2000);
+			udelay(2000);
 			hdmi_write(0x2241, 0x10);
 			hdmi_write(0xA240, 0x00);
 			hdmi_write(0xA241, 0x00);
 			hdmi_write(0xA242, 0x10);
-			hdmi_udelay(2000);
+			udelay(2000);
 			hdmi_write(0x2241, 0x19);
 			hdmi_write(0xA240, 0x00);
 			hdmi_write(0xA241, 0x07);
 			hdmi_write(0xA242, 0x10);
-			hdmi_udelay(2000);
+			udelay(2000);
 			hdmi_write(0x2241, 0x0e);
 			hdmi_write(0xA240, 0x02);
 			hdmi_write(0xA241, 0xb5);
 			hdmi_write(0xA242, 0x10);
-			hdmi_udelay(2000);
+			udelay(2000);
 			hdmi_write(0x2241, 0x09);
 			hdmi_write(0xA240, 0x80);
 			hdmi_write(0xA241, 0x09);
 			hdmi_write(0xA242, 0x10);
-			hdmi_udelay(2000);
+			udelay(2000);
 			break;
 		case 11:
 			hdmi_write(0x2241, 0x06);
 			hdmi_write(0xA240, 0x01);
 			hdmi_write(0xA241, ptbl[id].para[2] ? 0xe3 : 0xe0);
 			hdmi_write(0xA242, 0x10);
-			hdmi_udelay(2000);
+			udelay(2000);
 			hdmi_write(0x2241, 0x15);
 			hdmi_write(0xA240, 0x00);
 			hdmi_write(0xA241, 0x00);
 			hdmi_write(0xA242, 0x10);
-			hdmi_udelay(2000);
+			udelay(2000);
 			hdmi_write(0x2241, 0x10);
 			hdmi_write(0xA240, 0x08);
 			hdmi_write(0xA241, 0xda);
 			hdmi_write(0xA242, 0x10);
-			hdmi_udelay(2000);
+			udelay(2000);
 			hdmi_write(0x2241, 0x19);
 			hdmi_write(0xA240, 0x00);
 			hdmi_write(0xA241, 0x07);
 			hdmi_write(0xA242, 0x10);
-			hdmi_udelay(2000);
+			udelay(2000);
 			hdmi_write(0x2241, 0x0E);
 			hdmi_write(0xA240, 0x03);
 			hdmi_write(0xA241, 0x18);
 			hdmi_write(0xA242, 0x10);
-			hdmi_udelay(2000);
+			udelay(2000);
 			hdmi_write(0x2241, 0x09);
 			hdmi_write(0xA240, 0x80);
 			hdmi_write(0xA241, 0x09);
 			hdmi_write(0xA242, 0x10);
-			hdmi_udelay(2000);
+			udelay(2000);
 			break;
 		default:
 			return -1;
@@ -279,17 +270,17 @@ static int hdmi_phy_set(struct video_para *video)
 	hdmi_write(0xA240, 0x00);
 	hdmi_write(0xA241, 0x00);
 	hdmi_write(0xA242, 0x10);
-	hdmi_udelay(2000);
+	udelay(2000);
 	hdmi_write(0x2241, 0x13);
 	hdmi_write(0xA240, 0x00);
 	hdmi_write(0xA241, 0x00);
 	hdmi_write(0xA242, 0x10);
-	hdmi_udelay(2000);
+	udelay(2000);
 	hdmi_write(0x2241, 0x17);
 	hdmi_write(0xA240, 0x00);
 	hdmi_write(0xA241, 0x00);
 	hdmi_write(0xA242, 0x10);
-	hdmi_udelay(2000);
+	udelay(2000);
 	hdmi_write(0x0240, 0x0e);
 	return 0;
 }
@@ -313,7 +304,7 @@ void bsp_hdmi_init()
 	hdmi_write(0x10012,0x52);
 	hdmi_write(0x10013,0x54);
 	hdmi_write(0x8080, 0x00);
-	hdmi_udelay(1);
+	udelay(1);
 	hdmi_write(0xF01F, 0x00);
 	hdmi_write(0x8403, 0xff);
 	hdmi_write(0x904C, 0xff);
@@ -574,9 +565,9 @@ int bsp_hdmi_audio(struct audio_para *audio)
 	hdmi_write(0x0250, 0x00);
 	hdmi_write(0x0081, 0x08);
 	hdmi_write(0x8080, 0xf7);
-	hdmi_udelay(100);
+	udelay(100);
 	hdmi_write(0x0250, 0xaf);
-	hdmi_udelay(100);
+	udelay(100);
 	hdmi_write(0x0081, 0x00);
 
 	return 0;
@@ -597,7 +588,7 @@ int bsp_hdmi_ddc_read(char cmd,char pointer,char offset,int nbyte,char * pbuf)
 	to_cnt = 50;
 	while((hdmi_read(0x4EE1)&0x01)!=0x01)
 	{
-		hdmi_udelay(10);
+		udelay(10);
 		to_cnt--;	//wait for 500us for timeout
 		if(to_cnt == 0)
 		{
@@ -641,7 +632,7 @@ int bsp_hdmi_ddc_read(char cmd,char pointer,char offset,int nbyte,char * pbuf)
 				ret = -1;
 				break;
 			}
-			hdmi_udelay(1000);
+			udelay(1000);
 	  }
 	  nbyte --;
 	  off ++;

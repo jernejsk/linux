@@ -15,11 +15,9 @@
 #include <linux/sched.h>   //wake_up_process()
 #include <linux/kthread.h> //kthread_create()??kthread_run()
 #include <linux/err.h> //IS_ERR()??PTR_ERR()
-#include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
-#include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/dma-mapping.h>
 #include <linux/interrupt.h>
@@ -64,9 +62,6 @@ __s32 Hdmi_get_hdcp_enable(void);
 __s32 Hdmi_get_video_timming_info(disp_video_timings **video_info);
 int Hdmi_get_video_info_index(u32 mode_id);
 __s32 Hdmi_get_input_csc(void);
-
-extern __s32 hdmi_i2c_add_driver(void);
-extern __s32 hdmi_i2c_del_driver(void);
 
 #define sys_get_wvalue(n)   (*((volatile __u32 *)(n)))          /* word input */
 #define sys_put_wvalue(n,c) (*((volatile __u32 *)(n))  = (c))   /* word output */
