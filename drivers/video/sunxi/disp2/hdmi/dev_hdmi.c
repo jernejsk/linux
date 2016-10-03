@@ -1,6 +1,6 @@
 #include "dev_hdmi.h"
 #include "drv_hdmi_i.h"
-#include "aw/hdmi_core.h"
+#include "hdmi_core.h"
 
 static struct cdev *my_cdev;
 static dev_t devid ;

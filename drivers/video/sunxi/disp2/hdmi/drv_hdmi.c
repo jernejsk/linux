@@ -1,6 +1,6 @@
 #include "drv_hdmi_i.h"
-#include "aw/hdmi_core.h"
-#include "aw/hdmi_edid.h"
+#include "hdmi_core.h"
+#include "hdmi_edid.h"
 #include "dev_hdmi.h"
 #include "../disp/disp_sys_intf.h"
 #include <linux/regulator/consumer.h>

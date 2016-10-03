@@ -1,7 +1,7 @@
 #ifndef __HDMI_CORE_H__
 #define __HDMI_CORE_H__
 
-#include "../drv_hdmi_i.h"
+#include "drv_hdmi_i.h"
 #include "hdmi_edid.h"
 #include "hdmi_bsp.h"
 
