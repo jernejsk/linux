@@ -5,6 +5,8 @@
 #include "hdmi_edid.h"
 #include "hdmi_bsp.h"
 
+#define HDMI_DEVICE_SUPPORT_VIC_SIZE	512
+
 #define HDMI_State_Idle 			 0x00
 #define HDMI_State_Wait_Hpd			 0x02
 #define HDMI_State_Rx_Sense			 0x03
@@ -36,7 +38,7 @@
 #define HDMI3840_2160P_24  (3+0x100)
 
 #define HDMI_EDID_LEN      1024
-#define HDMI_EDID          511
+#define HDMI_EDID	   (HDMI_DEVICE_SUPPORT_VIC_SIZE - 1)
 
 /*
 typedef struct video_timing
@@ -98,7 +100,9 @@ extern __u32 hdmi_pll;//0:video pll 0; 1:video pll 1
 extern __u32 hdmi_clk;
 extern __u32 hdmi_print;
 extern __u32 hdmi_hpd_mask;//0x10: force unplug; 0x11: force plug
-//extern disp_video_timing video_timing[];
+
+extern disp_video_timings video_timing[];
+extern const int video_timing_edid;
 
 #endif
 
