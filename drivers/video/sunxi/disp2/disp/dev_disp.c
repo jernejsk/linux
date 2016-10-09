@@ -15,6 +15,26 @@
 
 disp_drv_info g_disp_drv;
 
+static int screen0_output_type = -1;
+module_param(screen0_output_type, int, 0444);
+MODULE_PARM_DESC(screen0_output_type, "0:none; 1:lcd; 2:tv; 3:hdmi; 4:vga");
+
+static char *screen0_output_mode;
+module_param(screen0_output_mode, charp, 0444);
+MODULE_PARM_DESC(screen0_output_mode,
+	"tv/hdmi: <width>x<height><i|p><24|25|30|50|60> ie: 1920x1080p60 "
+	"vga: <width>x<height>");
+
+static int screen1_output_type = -1;
+module_param(screen1_output_type, int, 0444);
+MODULE_PARM_DESC(screen1_output_type, "0:none; 1:lcd; 2:tv; 3:hdmi; 4:vga");
+
+static char *screen1_output_mode;
+module_param(screen1_output_mode, charp, 0444);
+MODULE_PARM_DESC(screen0_output_mode,
+	"tv/hdmi: <width>x<height><i|p><24|25|30|50|60> ie: 1920x1080p60 "
+	"vga: <width>x<height>");
+
 #define MY_BYTE_ALIGN(x) ( ( (x + (4*1024-1)) >> 12) << 12)             /* alloc based on 4K byte */
 
 static u32 suspend_output_type[2] = {0,0};
@@ -97,6 +117,102 @@ static struct resource disp_resource[] =
 {
 };
 #endif
+
+static u32 tv_mode_to_frame_rate(u32 mode)
+{
+	switch (mode) {
+	case DISP_TV_MOD_1080P_24HZ:
+	case DISP_TV_MOD_1080P_24HZ_3D_FP:
+	case DISP_TV_MOD_3840_2160P_24HZ:
+		return 24;
+	case DISP_TV_MOD_1080P_25HZ:
+	case DISP_TV_MOD_3840_2160P_25HZ:
+		return 25;
+	case DISP_TV_MOD_1080P_30HZ:
+	case DISP_TV_MOD_3840_2160P_30HZ:
+		return 30;
+	case DISP_TV_MOD_576I:
+	case DISP_TV_MOD_576P:
+	case DISP_TV_MOD_PAL:
+	case DISP_TV_MOD_PAL_SVIDEO:
+	case DISP_TV_MOD_PAL_NC:
+	case DISP_TV_MOD_PAL_NC_SVIDEO:
+	case DISP_TV_MOD_720P_50HZ:
+	case DISP_TV_MOD_720P_50HZ_3D_FP:
+	case DISP_TV_MOD_1080I_50HZ:
+	case DISP_TV_MOD_1080P_50HZ:
+		return 50;
+	default:
+		return 60;
+	}
+}
+
+static u32 get_screen_scan_mode(disp_tv_mode tv_mode)
+{
+	__u32 ret = 0;
+
+	switch (tv_mode) {
+	case DISP_TV_MOD_480I:
+	case DISP_TV_MOD_NTSC:
+	case DISP_TV_MOD_NTSC_SVIDEO:
+	case DISP_TV_MOD_PAL_M:
+	case DISP_TV_MOD_PAL_M_SVIDEO:
+	case DISP_TV_MOD_576I:
+	case DISP_TV_MOD_PAL:
+	case DISP_TV_MOD_PAL_SVIDEO:
+	case DISP_TV_MOD_PAL_NC:
+	case DISP_TV_MOD_PAL_NC_SVIDEO:
+	case DISP_TV_MOD_1080I_50HZ:
+	case DISP_TV_MOD_1080I_60HZ:
+		ret = 1;
+		break;
+	default:
+		break;
+	}
+
+	return ret;
+}
+
+static int parse_output_mode(char *mode, int type, int fallback)
+{
+	u32 i, max, width, height, interlace, frame_rate;
+	char *ep;
+
+	width = simple_strtol(mode, &ep, 10);
+	if (*ep != 'x') {
+		__wrn("Invalid mode string: %s, ignoring\n", mode);
+		return fallback;
+	}
+	height = simple_strtol(ep + 1, &ep, 10);
+
+	if (type == DISP_OUTPUT_TYPE_TV || type == DISP_OUTPUT_TYPE_HDMI) {
+		if (*ep == 'i') {
+			interlace = 1;
+		} else if (*ep == 'p') {
+			interlace = 0;
+		} else {
+			__wrn("Invalid tv-mode string: %s, ignoring\n", mode);
+			return fallback;
+		}
+		frame_rate = simple_strtol(ep + 1, &ep, 10);
+
+		/* FIXME: DISP_TV_MOD_1080P_25HZ and DISP_TV_MOD_1080P_30HZ should
+		 * also be considered for TV type
+		 */
+		max = (type == DISP_OUTPUT_TYPE_TV) ?
+			DISP_TV_MOD_1080P_24HZ_3D_FP : DISP_TV_MODE_NUM;
+		for (i = 0; i < max; i++) {
+			if (bsp_disp_get_screen_width_from_output_type(0, type, i) == width &&
+			    bsp_disp_get_screen_height_from_output_type(0, type, i) == height &&
+			    get_screen_scan_mode(i) == interlace &&
+			    tv_mode_to_frame_rate(i) == frame_rate) {
+				return i;
+			}
+		}
+	}
+	__wrn("Unsupported mode: %s, ignoring\n", mode);
+	return fallback;
+}
 
 static ssize_t disp_sys_show(struct device *dev,
     struct device_attribute *attr, char *buf)
@@ -392,51 +508,70 @@ static s32 parser_disp_init_para(disp_init_para * init_para)
 	}
 	init_para->disp_mode= value;
 
-	//screen0
-	if(disp_sys_script_get_item("disp_init", "screen0_output_type", &value, 1) < 0)	{
+	/* screen0 */
+	if (screen0_output_type != -1)
+		value = screen0_output_type;
+	else if(disp_sys_script_get_item("disp_init", "screen0_output_type",
+					&value, 1) < 0) {
 		__wrn("fetch script data disp_init.screen0_output_type fail\n");
 		return -1;
 	}
+
 	if(value == 0) {
 		init_para->output_type[0] = DISP_OUTPUT_TYPE_NONE;
-	}	else if(value == 1) {
+	} else if(value == 1) {
 		init_para->output_type[0] = DISP_OUTPUT_TYPE_LCD;
-	}	else if(value == 2)	{
+	} else if(value == 2) {
 		init_para->output_type[0] = DISP_OUTPUT_TYPE_TV;
-	}	else if(value == 3)	{
+	} else if(value == 3) {
 		init_para->output_type[0] = DISP_OUTPUT_TYPE_HDMI;
-	}	else if(value == 4)	{
+	} else if(value == 4) {
 		init_para->output_type[0] = DISP_OUTPUT_TYPE_VGA;
-	}	else {
-		__wrn("invalid screen0_output_type %d\n", init_para->output_type[0]);
+	} else {
+		__wrn("invalid screen0_output_type %d\n",
+		      init_para->output_type[0]);
 		return -1;
 	}
 
-	if(disp_sys_script_get_item("disp_init", "screen0_output_mode", &value, 1) < 0)	{
+	if (disp_sys_script_get_item("disp_init", "screen0_output_mode",
+				     &value, 1) < 0) {
 		__wrn("fetch script data disp_init.screen0_output_mode fail\n");
 		return -1;
 	}
-	if(init_para->output_type[0] == DISP_OUTPUT_TYPE_TV || init_para->output_type[0] == DISP_OUTPUT_TYPE_HDMI
-	    || init_para->output_type[0] == DISP_OUTPUT_TYPE_VGA) {
-		init_para->output_mode[0]= value;
+
+	if (init_para->output_type[0] == DISP_OUTPUT_TYPE_TV ||
+	    init_para->output_type[0] == DISP_OUTPUT_TYPE_HDMI) {
+		if (screen0_output_mode) {
+			init_para->output_mode[0] =
+				parse_output_mode(screen0_output_mode,
+					init_para->output_type[0], value);
+		} else {
+			init_para->output_mode[0] = value;
+		}
+	} else if (init_para->output_type[0] == DISP_OUTPUT_TYPE_VGA) {
+		init_para->output_mode[0] = value;
 	}
 
-	//screen1
-	if(disp_sys_script_get_item("disp_init", "screen1_output_type", &value, 1) < 0)	{
+	/* screen1 */
+	if (screen1_output_type != -1)
+		value = screen1_output_type;
+	else if(disp_sys_script_get_item("disp_init", "screen1_output_type",
+					&value, 1) < 0)	{
 		__wrn("fetch script data disp_init.screen1_output_type fail\n");
 		return -1;
 	}
+
 	if(value == 0) {
 		init_para->output_type[1] = DISP_OUTPUT_TYPE_NONE;
-	}	else if(value == 1)	{
+	} else if(value == 1) {
 		init_para->output_type[1] = DISP_OUTPUT_TYPE_LCD;
-	}	else if(value == 2)	{
+	} else if(value == 2) {
 		init_para->output_type[1] = DISP_OUTPUT_TYPE_TV;
-	}	else if(value == 3)	{
+	} else if(value == 3) {
 		init_para->output_type[1] = DISP_OUTPUT_TYPE_HDMI;
-	}	else if(value == 4)	{
+	} else if(value == 4) {
 		init_para->output_type[1] = DISP_OUTPUT_TYPE_VGA;
-	}	else {
+	} else {
 		__wrn("invalid screen1_output_type %d\n", init_para->output_type[1]);
 		return -1;
 	}
@@ -445,9 +580,18 @@ static s32 parser_disp_init_para(disp_init_para * init_para)
 		__wrn("fetch script data disp_init.screen1_output_mode fail\n");
 		return -1;
 	}
-	if(init_para->output_type[1] == DISP_OUTPUT_TYPE_TV || init_para->output_type[1] == DISP_OUTPUT_TYPE_HDMI
-	    || init_para->output_type[1] == DISP_OUTPUT_TYPE_VGA) {
-		init_para->output_mode[1]= value;
+
+	if (init_para->output_type[1] == DISP_OUTPUT_TYPE_TV ||
+	    init_para->output_type[1] == DISP_OUTPUT_TYPE_HDMI) {
+		if (screen1_output_mode) {
+			init_para->output_mode[1] =
+				parse_output_mode(screen1_output_mode,
+					init_para->output_type[1], value);
+		} else {
+			init_para->output_mode[1] = value;
+		}
+	} else if (init_para->output_type[1] == DISP_OUTPUT_TYPE_VGA) {
+		init_para->output_mode[1] = value;
 	}
 
 #if defined(CONFIG_HOMLET_PLATFORM)
