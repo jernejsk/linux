@@ -1,4 +1,7 @@
 #include "disp_hdmi.h"
+#include "disp_display.h"
+
+extern s32 Display_set_fb_timming(u32 sel);
 
 #if defined(SUPPORT_HDMI)
 struct disp_device_private_data {
@@ -201,6 +204,7 @@ static s32 disp_hdmi_exit(struct disp_device* hdmi)
 s32 disp_hdmi_enable(struct disp_device* hdmi)
 {
 	unsigned long flags;
+	bool is_edid = false;
 	struct disp_device_private_data *hdmip = disp_hdmi_get_priv(hdmi);
 	struct disp_manager *mgr = NULL;
 	if((NULL == hdmi) || (NULL == hdmip)) {
@@ -211,6 +215,21 @@ s32 disp_hdmi_enable(struct disp_device* hdmi)
 	if(!mgr) {
 		DE_WRN("hdmi%d's mgr is NULL\n", hdmi->disp);
 		return DIS_FAIL;
+	}
+
+	pr_info("hdmi: use_edid is %s, for display %d",
+		gdisp.screen[hdmi->disp].use_edid ? "set" : "NOT set", hdmi->disp);
+
+	/*if (gdisp.screen[hdmi->disp].use_edid)*/ {
+		if (hdmip->hdmi_func.hdmi_wait_edid == NULL) {
+			DE_WRN("hdmi_wait_edid func is null\n");
+			return DIS_FAIL;
+		}
+
+		if (!hdmip->hdmi_func.hdmi_wait_edid() && 
+			!disp_hdmi_set_mode(hdmi, DISP_TV_MODE_EDID)) {
+			is_edid = true;
+		}
 	}
 
 	if(hdmip->hdmi_func.hdmi_get_video_timing_info == NULL) {
@@ -228,6 +247,46 @@ s32 disp_hdmi_enable(struct disp_device* hdmi)
 	memcpy(&hdmi->timings, hdmip->video_info, sizeof(disp_video_timings));
 	if(mgr->enable)
 		mgr->enable(mgr);
+
+	Display_set_fb_timming(hdmi->disp);
+
+	if (is_edid) {
+		disp_layer_config config;
+		s32 width, height;
+
+		//TODO is this needed?
+		config.channel = 1;
+		config.layer_id = 0;
+		if(mgr->get_layer_config(mgr, &config, 1)) {
+			pr_err("get_layer_config failed!");
+			return DIS_FAIL;
+		}
+
+		width = hdmi->timings.x_res;
+		height = hdmi->timings.y_res;
+
+		pr_info("hdmi: width %d height %d", width, height);
+
+		config.info.fb.crop.x = 0LL;
+		config.info.fb.crop.y = 0LL;
+		config.info.fb.crop.width = ((long long)(width)) << 32;
+		config.info.fb.crop.height = ((long long)(height)) << 32;
+		config.info.screen_win.x = 0;
+		config.info.screen_win.y = 0;
+		config.info.screen_win.width = width;
+		config.info.screen_win.height = height;
+		config.info.fb.size[0].width = width;
+		config.info.fb.size[0].height = height;
+		config.info.fb.size[1].width = width;
+		config.info.fb.size[1].height = height;
+		config.info.fb.size[2].width = width;
+		config.info.fb.size[2].height = height;
+
+		if(mgr->set_layer_config(mgr, &config, 1)) {
+			pr_err("set_layer_config failed!");
+			return DIS_FAIL;
+		}
+	}
 
 	disp_sys_register_irq(hdmip->irq_no,0,disp_hdmi_event_proc,(void*)hdmi->disp,0,0);
 	disp_sys_enable_irq(hdmip->irq_no);
@@ -479,6 +538,21 @@ static s32 disp_hdmi_get_edid(struct disp_device* hdmi)
 	return hdmip->hdmi_func.hdmi_get_edid();
 }
 
+static s32 disp_hdmi_get_video_timing(struct disp_device* hdmi,
+			      u32 mode, disp_video_timings *video_timing)
+{
+	struct disp_device_private_data *hdmip = disp_hdmi_get_priv(hdmi);
+	if((NULL == hdmi) || (NULL == hdmip)) {
+		DE_WRN("hdmi set func null  hdl!\n");
+		return DIS_FAIL;
+	}
+
+	if(hdmip->hdmi_func.hdmi_get_video_timing == NULL)
+		return 0;
+
+	return hdmip->hdmi_func.hdmi_get_video_timing(mode, video_timing);
+}
+
 static s32 disp_hdmi_suspend(struct disp_device* hdmi)
 {
 	struct disp_device_private_data *hdmip = disp_hdmi_get_priv(hdmi);
@@ -604,6 +678,7 @@ s32 disp_init_hdmi(disp_bsp_init_para * para)
 			hdmi->detect = disp_hdmi_detect;
 			hdmi->set_detect = disp_hdmi_set_detect;
 			hdmi->get_edid = disp_hdmi_get_edid;
+			hdmi->hdmi_get_video_timing = disp_hdmi_get_video_timing;
 
 			if(bsp_disp_feat_is_supported_output_types(disp, DISP_OUTPUT_TYPE_HDMI)) {
 				hdmi->init(hdmi);

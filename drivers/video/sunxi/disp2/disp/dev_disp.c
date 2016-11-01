@@ -22,8 +22,9 @@ MODULE_PARM_DESC(screen0_output_type, "0:none; 1:lcd; 2:tv; 3:hdmi; 4:vga");
 static char *screen0_output_mode;
 module_param(screen0_output_mode, charp, 0444);
 MODULE_PARM_DESC(screen0_output_mode,
-	"tv/hdmi: <width>x<height><i|p><24|25|30|50|60> ie: 1920x1080p60 "
-	"vga: <width>x<height>");
+	"tv/hdmi: <width>x<height><i|p><24|25|30|50|60> vga: <width>x<height>"
+	"hdmi modes can be prefixed with \"EDID:\". Then EDID will be used, "
+	"with the specified mode as a fallback, ie \"EDID:1280x720p60\".");
 
 static int screen1_output_type = -1;
 module_param(screen1_output_type, int, 0444);
@@ -31,9 +32,7 @@ MODULE_PARM_DESC(screen1_output_type, "0:none; 1:lcd; 2:tv; 3:hdmi; 4:vga");
 
 static char *screen1_output_mode;
 module_param(screen1_output_mode, charp, 0444);
-MODULE_PARM_DESC(screen0_output_mode,
-	"tv/hdmi: <width>x<height><i|p><24|25|30|50|60> ie: 1920x1080p60 "
-	"vga: <width>x<height>");
+MODULE_PARM_DESC(screen1_output_mode, "See screen0_output_mode");
 
 #define MY_BYTE_ALIGN(x) ( ( (x + (4*1024-1)) >> 12) << 12)             /* alloc based on 4K byte */
 
@@ -173,10 +172,15 @@ static u32 get_screen_scan_mode(disp_tv_mode tv_mode)
 	return ret;
 }
 
-static int parse_output_mode(char *mode, int type, int fallback)
+static int parse_output_mode(char *mode, int type, int fallback, bool *edid)
 {
 	u32 i, max, width, height, interlace, frame_rate;
 	char *ep;
+
+	if (type == DISP_OUTPUT_TYPE_HDMI && strncmp(mode, "EDID:", 5) == 0) {
+		*edid = true;
+		mode += 5;
+	}
 
 	width = simple_strtol(mode, &ep, 10);
 	if (*ep != 'x') {
@@ -544,7 +548,10 @@ static s32 parser_disp_init_para(disp_init_para * init_para)
 		if (screen0_output_mode) {
 			init_para->output_mode[0] =
 				parse_output_mode(screen0_output_mode,
-					init_para->output_type[0], value);
+					init_para->output_type[0], value,
+					&gdisp.screen[0].use_edid);
+			pr_info("disp: edid mode for type %d and disp 0 is %s",
+				init_para->output_type[0], gdisp.screen[0].use_edid ? "set" : "NOT set");
 		} else {
 			init_para->output_mode[0] = value;
 		}
@@ -586,7 +593,10 @@ static s32 parser_disp_init_para(disp_init_para * init_para)
 		if (screen1_output_mode) {
 			init_para->output_mode[1] =
 				parse_output_mode(screen1_output_mode,
-					init_para->output_type[1], value);
+					init_para->output_type[1], value,
+					&gdisp.screen[1].use_edid);
+			pr_info("disp: edid mode for type %d and disp 1 is %s",
+				init_para->output_type[1], gdisp.screen[1].use_edid ? "set" : "NOT set");
 		} else {
 			init_para->output_mode[1] = value;
 		}

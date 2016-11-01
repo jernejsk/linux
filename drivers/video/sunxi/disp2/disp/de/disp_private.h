@@ -147,7 +147,9 @@ struct disp_device {
 	s32 (*set_func)(struct disp_device*  dispdev, disp_hdmi_func * func);
 	s32 (*set_tv_func)(struct disp_device*  dispdev, disp_tv_func * func);
 	s32 (*get_edid)(struct disp_device*  dispdev);
-	s32	(*set_enhance_mode)(struct disp_device *dispdev, u32 mode);
+	s32 (*set_enhance_mode)(struct disp_device *dispdev, u32 mode);
+	s32 (*hdmi_get_video_timing)(struct disp_device *dispdev, 
+				     u32 mode, disp_video_timings *video_timing);
 
 	/* LCD */
 	s32 (*set_bright)(struct disp_device *dispdev, u32 bright);

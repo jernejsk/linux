@@ -537,3 +537,23 @@ __s32 video_exit_lp(void)
 
 	return 0;
 }
+
+__s32 wait_edid(void)
+{
+	unsigned long start = jiffies;
+
+	while (time_before(jiffies, start + 10 * HZ)) { /* Wait max 10 sec */
+		if (hdmi_state > HDMI_State_EDID_Parse) {
+			pr_info("waited %ld ms for EDID info\n",
+				(jiffies - start) * 1000 / HZ);
+			if (!Device_Support_VIC[HDMI_EDID]) {
+				pr_warn("No valid EDID mode found\n");
+				return -1;
+			}
+			return 0;
+		}
+		msleep_interruptible(1);
+	}
+	pr_warn("Timeout waiting for EDID info\n");
+	return -1;
+}

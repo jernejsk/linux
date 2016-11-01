@@ -131,6 +131,9 @@ typedef enum
 	DISP_TV_MOD_3840_2160P_25HZ     = 0x1d,
 	DISP_TV_MOD_3840_2160P_24HZ     = 0x1e,
 	DISP_TV_MODE_NUM                = 0x1f,
+
+	/* Reserved, do not use in fex files */
+	DISP_TV_MODE_EDID = 0xff
 }disp_tv_mode;
 
 
@@ -320,6 +323,8 @@ typedef struct
 	int (*hdmi_early_suspend)(void);
 	int (*hdmi_late_resume)(void);
 	int (*hdmi_get_edid)(void);
+	int (*hdmi_wait_edid)(void);
+	int (*hdmi_get_video_timing)(unsigned int mode, disp_video_timings *video_timing);
 }disp_hdmi_func;
 typedef struct
 {

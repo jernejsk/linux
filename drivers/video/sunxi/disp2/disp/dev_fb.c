@@ -15,6 +15,7 @@
 #include <linux/kernel.h>
 #include <linux/fb.h>
 #include <linux/memblock.h>
+#include <linux/console.h>
 
 
 typedef struct
@@ -22,6 +23,7 @@ typedef struct
 	struct device           *dev;
 
 	bool                    fb_enable[FB_MAX];
+	bool                    fb_registered[FB_MAX];
 	disp_fb_mode            fb_mode[FB_MAX];
 	u32                     layer_hdl[FB_MAX][2];//channel, layer_id
 	struct fb_info *        fbinfo[FB_MAX];
@@ -36,12 +38,73 @@ typedef struct
 }fb_info_t;
 
 static fb_info_t g_fbi;
+static DEFINE_MUTEX(g_fbi_mutex);
 static phys_addr_t bootlogo_addr = 0;
 static int bootlogo_sz = 0;
 
 extern disp_drv_info g_disp_drv;
 
 static struct __fb_addr_para g_fb_addr;
+
+static inline __u32 HZ2PICOS(__u32 hz)
+{
+	__u64 numerator = 1000000000000ULL + (hz / 2);
+	do_div(numerator, hz);
+	return numerator;
+}
+
+static s32 fb_disp_get_videomode(u32 sel, struct fb_videomode *videomode)
+{
+	u32 vtotal;
+	disp_video_timings tt;
+	struct disp_manager *mgr = g_disp_drv.mgr[sel];
+
+	if (!videomode)
+		return -1;
+
+	memset(videomode, 0, sizeof(struct fb_videomode));
+
+	if(!mgr || !mgr->device || !mgr->device->get_timings)
+		return -1;
+
+	mgr->device->get_timings(mgr->device, &tt);
+
+	if(!tt.pixel_clk)
+		return -1;
+
+	vtotal = tt.ver_total_time;
+
+	videomode->xres = tt.x_res;
+	videomode->yres = tt.y_res;
+	videomode->pixclock = HZ2PICOS(tt.pixel_clk);
+	videomode->left_margin = tt.hor_back_porch;
+	videomode->right_margin = tt.hor_front_porch;
+	videomode->upper_margin = tt.ver_back_porch;
+	videomode->lower_margin = tt.ver_front_porch;
+	videomode->hsync_len = tt.hor_sync_time;
+	videomode->vsync_len = tt.ver_sync_time;
+
+	if (tt.b_interlace) {
+		videomode->vmode = FB_VMODE_INTERLACED;
+		vtotal /= 2;
+	}
+
+	if (tt.pixel_repeat) {
+		videomode->vmode |= FB_VMODE_DOUBLE;
+		vtotal *= 2;
+	}
+
+	if (tt.ver_sync_polarity)
+		videomode->sync = FB_SYNC_VERT_HIGH_ACT;
+
+	if (tt.hor_sync_polarity)
+		videomode->sync |= FB_SYNC_HOR_HIGH_ACT;
+
+	videomode->refresh = tt.pixel_clk /
+				(tt.hor_total_time * vtotal);
+
+	return 0;
+}
 
 s32 sunxi_get_fb_addr_para(struct __fb_addr_para *fb_addr_para)
 {
@@ -604,12 +667,12 @@ static int sunxi_fb_set_par(struct fb_info *info)
 
 	num_screens = bsp_disp_feat_get_num_screens();
 
-	__inf("sunxi_fb_set_par\n");
+	pr_info("sunxi_fb_set_par");
 
 	for(sel = 0; sel < num_screens; sel++) {
 		if(sel==g_fbi.fb_mode[info->node]) {
 			struct fb_var_screeninfo *var = &info->var;
-			struct fb_fix_screeninfo * fix = &info->fix;
+			struct fb_fix_screeninfo *fix = &info->fix;
 			s32 chan = g_fbi.layer_hdl[info->node][0];
 			s32 layer_id = g_fbi.layer_hdl[info->node][1];
 			disp_layer_config config;
@@ -1118,10 +1181,10 @@ static s32 display_fb_request(u32 fb_id, disp_fb_create_info *fb_para)
 
 	num_screens = bsp_disp_feat_get_num_screens();
 
-	__inf("%s,fb_id:%d\n", __func__, fb_id);
+	pr_info("%s,fb_id:%d\n", __func__, fb_id);
 
 	if(g_fbi.fb_enable[fb_id]) {
-		__wrn("%s, fb%d is already requested!\n", __func__, fb_id);
+		pr_warn("%s, fb%d is already requested!\n", __func__, fb_id);
 		return -1;
 	}
 	info = g_fbi.fbinfo[fb_id];
@@ -1147,20 +1210,15 @@ static s32 display_fb_request(u32 fb_id, disp_fb_create_info *fb_para)
 	for(sel = 0; sel < num_screens; sel++) {
 		if(sel == fb_para->fb_mode)	{
 			u32 src_width = xres, src_height = yres;
-			disp_video_timings tt;
-			struct disp_manager *mgr = NULL;
-			mgr = g_disp_drv.mgr[sel];
-			if(mgr && mgr->device && mgr->device->get_timings) {
-				mgr->device->get_timings(mgr->device, &tt);
-				if(0 != tt.pixel_clk)
-					g_fbi.fbinfo[fb_id]->var.pixclock = 1000000000 / tt.pixel_clk;
-				g_fbi.fbinfo[fb_id]->var.left_margin = tt.hor_back_porch;
-				g_fbi.fbinfo[fb_id]->var.right_margin = tt.hor_front_porch;
-				g_fbi.fbinfo[fb_id]->var.upper_margin = tt.ver_back_porch;
-				g_fbi.fbinfo[fb_id]->var.lower_margin = tt.ver_front_porch;
-				g_fbi.fbinfo[fb_id]->var.hsync_len = tt.hor_sync_time;
-				g_fbi.fbinfo[fb_id]->var.vsync_len = tt.ver_sync_time;
+			struct disp_manager *mgr = g_disp_drv.mgr[sel];
+			struct fb_videomode mode;
+
+			if (fb_disp_get_videomode(sel, &mode) == 0) {
+				fb_videomode_to_var(&info->var, &mode);
+				info->var.yres_virtual =
+					mode.yres * fb_para->buffer_num;
 			}
+
 #if 0			
 			info->var.width = bsp_disp_get_screen_physical_width(sel);
 			info->var.height = bsp_disp_get_screen_physical_height(sel);
@@ -1266,27 +1324,31 @@ static s32 display_fb_release(u32 fb_id)
 
 s32 Display_set_fb_timming(u32 sel)
 {
-	u8 fb_id=0;
+	/*__u8 fb_id = 0;
 
-	for(fb_id=0; fb_id<FB_MAX; fb_id++) {
-		if(g_fbi.fb_enable[fb_id]) {
-			if(sel==g_fbi.fb_mode[fb_id])	{
-				disp_video_timings tt;
-				struct disp_manager *mgr = g_disp_drv.mgr[sel];
+	for (fb_id = 0; fb_id < FB_MAX; fb_id++) {
+		if (g_fbi.fb_enable[fb_id]) {
+			if (sel == g_fbi.fb_mode[fb_id]) {
+				struct fb_var_screeninfo *var = &g_fbi.fbinfo[sel]->var;
+				struct fb_videomode mode;
 
-				if(mgr && mgr->device && mgr->device->get_timings) {
-					mgr->device->get_timings(mgr->device, &tt);
-					if(0 != tt.pixel_clk)
-						g_fbi.fbinfo[fb_id]->var.pixclock = 1000000000 / tt.pixel_clk;
-					g_fbi.fbinfo[fb_id]->var.left_margin = tt.hor_back_porch;
-					g_fbi.fbinfo[fb_id]->var.right_margin = tt.hor_front_porch;
-					g_fbi.fbinfo[fb_id]->var.upper_margin = tt.ver_back_porch;
-					g_fbi.fbinfo[fb_id]->var.lower_margin = tt.ver_front_porch;
-					g_fbi.fbinfo[fb_id]->var.hsync_len = tt.hor_sync_time;
-					g_fbi.fbinfo[fb_id]->var.vsync_len = tt.ver_sync_time;
+				if (fb_disp_get_videomode(sel, &mode) == 0) {
+					fb_videomode_to_var(var, &mode);
+					var->yres_virtual = mode.yres *
+						g_fbi.fb_para[fb_id].buffer_num;
 				}
 			}
 		}
+	}*/
+
+	struct fb_var_screeninfo *var = &g_fbi.fbinfo[sel]->var;
+	struct fb_videomode mode;
+
+	pr_info("%s", __func__);
+
+	if (fb_disp_get_videomode(sel, &mode) == 0) {
+		fb_videomode_to_var(var, &mode);
+		var->yres_virtual = mode.yres * 2;
 	}
 
 	return 0;
@@ -1427,9 +1489,12 @@ s32 fb_init(struct platform_device *pdev)
 			fb_draw_colorbar((u32 __force)g_fbi.fbinfo[i]->screen_base, fb_para.width, fb_para.height*fb_para.buffer_num, &(g_fbi.fbinfo[i]->var));
 #endif
 		}
+		mutex_lock(&g_fbi_mutex);
 		for (i = 0; i < 8; i++){
 			register_framebuffer(g_fbi.fbinfo[i]);
+			g_fbi.fb_registered[i] = true;
 		}
+		mutex_unlock(&g_fbi_mutex);
 	}
 
 	return 0;
@@ -1472,3 +1537,110 @@ static int __init bootlogo_parse(char *str)
 __setup("fb_base=", bootlogo_parse);
 #endif
 
+void hdmi_edid_received(unsigned char *edid, int block_count)
+{
+	struct fb_event event;
+	struct fb_modelist *m, *n;
+	int dummy;
+	__u32 sel = 0;
+	__u32 block = 0;
+	LIST_HEAD(old_modelist);
+
+	mutex_lock(&g_fbi_mutex);
+	for (sel = 0; sel < 2; sel++) {
+		struct fb_info *fbi = g_fbi.fbinfo[sel];
+		int err = 0;
+
+		if (g_disp_drv.disp_init.output_type[sel] != DISP_OUTPUT_TYPE_HDMI)
+			continue;
+
+		if (g_fbi.fb_registered[sel]) {
+			if (!lock_fb_info(fbi))
+				continue;
+
+			console_lock();
+		}
+
+		for (block = 0; block < block_count; block++) {
+			if (block == 0) {
+				if (fbi->monspecs.modedb != NULL) {
+					fb_destroy_modedb(fbi->monspecs.modedb);
+					fbi->monspecs.modedb = NULL;
+				}
+
+				fb_edid_to_monspecs(edid, &fbi->monspecs);
+			} else {
+				fb_edid_add_monspecs(edid + 0x80 * block, &fbi->monspecs);
+			}
+		}
+
+		if (fbi->monspecs.modedb_len == 0) {
+			/*
+			 * Should not happen? Avoid panics and skip in this
+			 * case.
+			 */
+			if (g_fbi.fb_registered[sel]) {
+				console_unlock();
+				unlock_fb_info(fbi);
+			}
+
+			WARN_ON(fbi->monspecs.modedb_len == 0);
+			continue;
+		}
+
+		list_splice(&fbi->modelist, &old_modelist);
+
+		fb_videomode_to_modelist(fbi->monspecs.modedb,
+					 fbi->monspecs.modedb_len,
+					 &fbi->modelist);
+
+		/* Filter out modes which we cannot do */
+		list_for_each_entry_safe(m, n, &fbi->modelist, list) {
+			if (m->mode.pixclock == 0) {
+				list_del(&m->list);
+				kfree(m);
+			}
+			/*if (disp_get_pll_freq(
+				fb_videomode_pixclock_to_hdmi_pclk(
+				    m->mode.pixclock), &dummy, &dummy) != 0 ||
+			    disp_check_fbmem(sel,
+					   m->mode.xres, m->mode.yres) != 0) {
+				list_del(&m->list);
+				kfree(m);
+			}*/
+		}
+		/*
+		 * When edid is not enabled make sure the current mode is in
+		 * the mode-list, so that the user-set mode is honored.
+		 */
+		/*if (!gdisp.screen[sel].use_edid) {
+			struct fb_videomode videomode;
+			if (BSP_disp_get_videomode(sel, &videomode) == 0)
+				fb_add_videomode(&videomode, &fbi->modelist);
+		}*/
+		/* Are there any usable modes left? */
+		if (list_empty(&fbi->modelist)) {
+			list_splice(&old_modelist, &fbi->modelist);
+			pr_warn("EDID: No modes with good pixelclock found\n");
+			continue;
+		}
+
+		/*
+		 * Tell framebuffer users that modelist was replaced. This is
+		 * to avoid use of old removed modes and to avoid panics.
+		 */
+		event.info = fbi;
+		//err = fb_notifier_call_chain(FB_EVENT_NEW_MODELIST, &event);
+
+		fb_destroy_modelist(&old_modelist);
+
+		if (g_fbi.fb_registered[sel]) {
+			console_unlock();
+			unlock_fb_info(fbi);
+		}
+
+		WARN_ON(err);
+	}
+	mutex_unlock(&g_fbi_mutex);
+}
+EXPORT_SYMBOL(hdmi_edid_received);

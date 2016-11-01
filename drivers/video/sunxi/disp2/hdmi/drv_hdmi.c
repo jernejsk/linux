@@ -274,13 +274,24 @@ static struct disp_hdmi_mode hdmi_mode_tbl[] = {
 	{DISP_TV_MOD_720P_60HZ_3D_FP,     HDMI720P_60_3D_FP, },
 	{DISP_TV_MOD_3840_2160P_30HZ,     HDMI3840_2160P_30, },
 	{DISP_TV_MOD_3840_2160P_25HZ,     HDMI3840_2160P_25, },
+	{DISP_TV_MODE_EDID,               HDMI_EDID          },
 };
+
+__s32 Hdmi_wait_edid(void)
+{
+	return wait_edid();
+}
 
 __u32 Hdmi_get_vic(u32 mode)
 {
 	__u32 hdmi_mode = DISP_TV_MOD_720P_50HZ;
 	__u32 i;
 	bool find = false;
+
+	if ((mode == DISP_TV_MODE_EDID) && !Device_Support_VIC[HDMI_EDID]) {
+		pr_err("EDID mode used without valid EDID info\n");
+		return 0;
+	}
 
 	for(i=0; i<sizeof(hdmi_mode_tbl)/sizeof(struct disp_hdmi_mode); i++)
 	{
@@ -477,6 +488,25 @@ __s32 Hdmi_get_input_csc(void)
 __s32 Hdmi_get_edid(void)
 {
 	return GetEdidInfo();
+}
+
+static __s32 Hdmi_get_video_timing(unsigned int mode, disp_video_timings *timing)
+{
+	__u32 hdmi_mode;
+	__s32 vic_tab;
+
+	hdmi_mode = Hdmi_get_vic(mode);
+	/*FIXME: Above function never fails.
+	if (!hdmi_mode)
+		return -1;*/
+
+	vic_tab = get_video_info(hdmi_mode);
+	if (vic_tab == -1)
+		return -1;
+
+	memcpy(timing, (void *) &video_timing[vic_tab],
+	       sizeof(disp_video_timings));
+	return 0;
 }
 
 int Hdmi_run_thread(void *parg)
@@ -704,6 +734,8 @@ __s32 Hdmi_init(void)
 			disp_func.hdmi_suspend = Hdmi_suspend;
 			disp_func.hdmi_resume = Hdmi_resume;
 			disp_func.hdmi_get_edid = Hdmi_get_edid;
+			disp_func.hdmi_wait_edid = Hdmi_wait_edid;
+			disp_func.hdmi_get_video_timing = Hdmi_get_video_timing;
 			disp_set_hdmi_func(&disp_func);
 		}
 	}

@@ -16,6 +16,7 @@ typedef struct
 #endif
 	bool                  vsync_event_en;
 	bool                  dvi_enable;
+	bool                  use_edid;
 }disp_screen_t;
 
 typedef struct
@@ -55,8 +56,6 @@ s32 bsp_disp_feat_get_num_layers_by_chn(u32 disp, u32 chn);
 s32 bsp_disp_feat_is_supported_output_types(u32 screen_id, u32 output_type);
 s32 bsp_disp_get_screen_physical_width(u32 disp);
 s32 bsp_disp_get_screen_physical_height(u32 disp);
-s32 bsp_disp_get_screen_width(u32 disp);
-s32 bsp_disp_get_screen_height(u32 disp);
 s32 bsp_disp_get_screen_width_from_output_type(u32 disp, u32 output_type, u32 output_mode);
 s32 bsp_disp_get_screen_height_from_output_type(u32 disp, u32 output_type, u32 output_mode);
 s32 bsp_disp_get_lcd_registered(u32 disp);

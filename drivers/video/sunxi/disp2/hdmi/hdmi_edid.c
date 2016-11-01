@@ -1,4 +1,5 @@
 #include "hdmi_core.h"
+#include "../disp/dev_disp.h"
 
 static __s32 is_hdmi;
 static __s32 is_yuv;
@@ -161,11 +162,11 @@ Parse_DTD_Block(__u8 *pbuf)
 	video_timing[video_timing_edid].x_res = sizex;
 	video_timing[video_timing_edid].y_res = sizey;
 	video_timing[video_timing_edid].hor_total_time = HT;
-	video_timing[video_timing_edid].hor_back_porch = Hblanking - Hsync_offset;
+	video_timing[video_timing_edid].hor_back_porch = Hblanking - Hsync_offset - Hsync_pulsew;
 	video_timing[video_timing_edid].hor_front_porch = Hsync_offset;
 	video_timing[video_timing_edid].hor_sync_time = Hsync_pulsew;
 	video_timing[video_timing_edid].ver_total_time = VT;
-	video_timing[video_timing_edid].ver_back_porch = Vblanking - Vsync_offset;
+	video_timing[video_timing_edid].ver_back_porch = Vblanking - Vsync_offset - Vsync_pulsew;
 	video_timing[video_timing_edid].ver_front_porch = Vsync_offset;
 	video_timing[video_timing_edid].ver_sync_time = Vsync_pulsew;
 	video_timing[video_timing_edid].hor_sync_polarity = Hsync;
@@ -188,6 +189,7 @@ Parse_DTD_Block(__u8 *pbuf)
 		pr_info("Interlaced VT %d\n",
 			video_timing[video_timing_edid].ver_total_time);
 	}
+	
 	Device_Support_VIC[HDMI_EDID] = 1;
 
 	return 0;
@@ -420,6 +422,8 @@ __s32 ParseEDID(void)
 			break;
 		}
 	}
+
+	hdmi_edid_received(EDID_Buf, BlockCount);
 
 	for (i = 1; i < BlockCount; i++) {
 		if (EDID_Buf[0x80 * i + 0] == 2) {

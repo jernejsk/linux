@@ -92,6 +92,7 @@ extern __u32 get_cts_enable(void);
 extern __s32 video_enter_lp(void);
 extern __s32 video_exit_lp(void);
 extern __u32 get_csc_type(void);
+extern __s32 wait_edid(void);
 
 __s32 hdmi_core_get_list_num(void);
 

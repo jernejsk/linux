@@ -689,29 +689,13 @@ s32 bsp_disp_get_screen_physical_height(u32 disp)
 	return height;
 }
 
-s32 bsp_disp_get_screen_width(u32 disp)
-{
-	s32 width = 0;
-	//FIXME
-	return width;
-}
-
-s32 bsp_disp_get_screen_height(u32 disp)
-{
-	s32 height = 0;
-	//FIXME
-
-	return height;
-}
-
-
 s32 bsp_disp_get_screen_width_from_output_type(u32 disp, u32 output_type, u32 output_mode)
 {
 	u32 width = 800, height;
+	disp_video_timings video_timing;
+	struct disp_manager *mgr;
 
 	if(DISP_OUTPUT_TYPE_LCD == output_type) {
-		struct disp_manager *mgr;
-
 		mgr = disp_get_layer_manager(disp);
 		if(mgr && mgr->device && mgr->device->get_resolution) {
 			mgr->device->get_resolution(mgr->device, &width, &height);
@@ -753,6 +737,15 @@ s32 bsp_disp_get_screen_width_from_output_type(u32 disp, u32 output_type, u32 ou
 		case DISP_TV_MOD_3840_2160P_24HZ:
 			width = 3840;
 			break;
+		case DISP_TV_MODE_EDID:
+			mgr = disp_get_layer_manager(disp);
+			if(mgr && mgr->device && mgr->device->hdmi_get_video_timing) {
+				if (mgr->device->hdmi_get_video_timing(mgr->device,
+								   output_mode,
+								   &video_timing) == 0)
+					width = video_timing.x_res;
+			}
+			break;
 		}
 	}
 
@@ -762,9 +755,10 @@ s32 bsp_disp_get_screen_width_from_output_type(u32 disp, u32 output_type, u32 ou
 s32 bsp_disp_get_screen_height_from_output_type(u32 disp, u32 output_type, u32 output_mode)
 {
 	u32 width, height = 480;
+	disp_video_timings video_timing;
+	struct disp_manager *mgr;
 
 	if(DISP_OUTPUT_TYPE_LCD == output_type) {
-		struct disp_manager *mgr;
 		mgr = disp_get_layer_manager(disp);
 		if(mgr && mgr->device && mgr->device->get_resolution) {
 			mgr->device->get_resolution(mgr->device, &width, &height);
@@ -811,6 +805,15 @@ s32 bsp_disp_get_screen_height_from_output_type(u32 disp, u32 output_type, u32 o
 		case DISP_TV_MOD_3840_2160P_25HZ:
 		case DISP_TV_MOD_3840_2160P_24HZ:
 			height = 2160;
+			break;
+		case DISP_TV_MODE_EDID:
+			mgr = disp_get_layer_manager(disp);
+			if(mgr && mgr->device && mgr->device->hdmi_get_video_timing) {
+				if (mgr->device->hdmi_get_video_timing(mgr->device,
+								   output_mode,
+								   &video_timing) == 0)
+					height = video_timing.y_res;
+			}
 			break;
 		}
 	}
